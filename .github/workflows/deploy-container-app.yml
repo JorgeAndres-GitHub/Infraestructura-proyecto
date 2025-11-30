@@ -17,8 +17,8 @@ on:
 
 env:
   AZURE_CONTAINER_REGISTRY: ${{ secrets.ACR_LOGIN_SERVER }}
-  CONTAINER_APP_NAME: jhdemo-containerapp
-  RESOURCE_GROUP: rg-proyecto-demo
+  CONTAINER_APP_NAME: infradm24-containerapp
+  RESOURCE_GROUP: rg-infra-project
 
 jobs:
   build:
