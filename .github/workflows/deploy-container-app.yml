@@ -1,7 +1,12 @@
 name: 'Deploy Container App'
 
 on:
-  # Solo se ejecuta manualmente o cuando Terraform termina
+  push:
+    branches:
+      - main
+    paths:
+      - 'api/**'
+      - '.github/workflows/deploy-container-app.yml'
   workflow_dispatch:
     inputs:
       image_tag:
@@ -16,19 +21,15 @@ on:
       - main
 
 env:
-  AZURE_CONTAINER_REGISTRY: ${{ secrets.ACR_LOGIN_SERVER }}
   CONTAINER_APP_NAME: infradm24-containerapp
   RESOURCE_GROUP: rg-infra-project
+  ACR_NAME: infradm24acr
 
 jobs:
-  build:
-    # Solo ejecutar si Terraform fue exitoso (o si es manual)
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+  build-and-deploy:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'push' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
-    name: Build and Push Container Image
-
-    # Solo ejecutar si existe un Dockerfile
-    # Si no tienes API propia, este job se puede omitir
+    name: Build and Deploy Container App
 
     steps:
       - name: Checkout
@@ -39,33 +40,56 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Login to ACR
-        if: env.AZURE_CONTAINER_REGISTRY != ''
+      - name: Create ACR if not exists
         run: |
-          az acr login --name ${{ env.AZURE_CONTAINER_REGISTRY }}
+          az acr show --name ${{ env.ACR_NAME }} --resource-group ${{ env.RESOURCE_GROUP }} 2>/dev/null || \
+          az acr create --name ${{ env.ACR_NAME }} --resource-group ${{ env.RESOURCE_GROUP }} --sku Basic --admin-enabled true
 
-      # Descomentar cuando tengas tu propio Dockerfile y API
-      # - name: Build and Push Image
-      #   if: env.AZURE_CONTAINER_REGISTRY != ''
-      #   run: |
-      #     docker build -t ${{ env.AZURE_CONTAINER_REGISTRY }}/api:${{ github.sha }} .
-      #     docker push ${{ env.AZURE_CONTAINER_REGISTRY }}/api:${{ github.sha }}
+      - name: Login to ACR
+        run: |
+          az acr login --name ${{ env.ACR_NAME }}
 
-  deploy:
-    runs-on: ubuntu-latest
-    name: Deploy to Container App
-    needs: build
+      - name: Build and Push Image
+        run: |
+          cd api
+          az acr build --registry ${{ env.ACR_NAME }} --image chatbot-api:${{ github.sha }} --image chatbot-api:latest .
 
-    steps:
-      - name: Login to Azure
-        uses: azure/login@v2
-        with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+      - name: Get ACR credentials
+        id: acr-creds
+        run: |
+          ACR_SERVER=$(az acr show --name ${{ env.ACR_NAME }} --query loginServer -o tsv)
+          ACR_USERNAME=$(az acr credential show --name ${{ env.ACR_NAME }} --query username -o tsv)
+          ACR_PASSWORD=$(az acr credential show --name ${{ env.ACR_NAME }} --query passwords[0].value -o tsv)
+          echo "server=$ACR_SERVER" >> $GITHUB_OUTPUT
+          echo "username=$ACR_USERNAME" >> $GITHUB_OUTPUT
+          echo "password=$ACR_PASSWORD" >> $GITHUB_OUTPUT
+
+      - name: Get OpenAI secrets from Key Vault
+        id: kv-secrets
+        run: |
+          OPENAI_ENDPOINT=$(az keyvault secret show --vault-name infradm24-kv --name openai-endpoint --query value -o tsv)
+          OPENAI_KEY=$(az keyvault secret show --vault-name infradm24-kv --name openai-key --query value -o tsv)
+          SQL_PASSWORD=$(az keyvault secret show --vault-name infradm24-kv --name sql-admin-password --query value -o tsv)
+          echo "::add-mask::$OPENAI_KEY"
+          echo "::add-mask::$SQL_PASSWORD"
+          echo "endpoint=$OPENAI_ENDPOINT" >> $GITHUB_OUTPUT
+          echo "key=$OPENAI_KEY" >> $GITHUB_OUTPUT
+          echo "sql_password=$SQL_PASSWORD" >> $GITHUB_OUTPUT
 
       - name: Deploy to Container App
-        uses: azure/container-apps-deploy-action@v1
-        with:
-          resourceGroup: ${{ env.RESOURCE_GROUP }}
-          containerAppName: ${{ env.CONTAINER_APP_NAME }}
-          # Usar imagen por defecto si no hay ACR configurado
-          imageToDeploy: ${{ env.AZURE_CONTAINER_REGISTRY != '' && format('{0}/api:{1}', env.AZURE_CONTAINER_REGISTRY, github.sha) || 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest' }}
+        run: |
+          az containerapp update \
+            --name ${{ env.CONTAINER_APP_NAME }} \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --image ${{ steps.acr-creds.outputs.server }}/chatbot-api:${{ github.sha }} \
+            --set-env-vars \
+              "AZURE_OPENAI_ENDPOINT=${{ steps.kv-secrets.outputs.endpoint }}" \
+              "AZURE_OPENAI_API_KEY=${{ steps.kv-secrets.outputs.key }}" \
+              "AZURE_OPENAI_DEPLOYMENT=gpt-35-turbo" \
+              "SQL_SERVER=infradm24-sqlsrv.database.windows.net" \
+              "SQL_DATABASE=dbdemo" \
+              "SQL_USER=sqladmin" \
+              "SQL_PASSWORD=${{ steps.kv-secrets.outputs.sql_password }}" \
+            --registry-server ${{ steps.acr-creds.outputs.server }} \
+            --registry-username ${{ steps.acr-creds.outputs.username }} \
+            --registry-password ${{ steps.acr-creds.outputs.password }}

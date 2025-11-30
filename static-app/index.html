@@ -1,13 +1,62 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
   <meta charset="utf-8" />
-  <title>Mi Static App</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ChatBot - Azure OpenAI</title>
   <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
 </head>
 <body>
-  <h1>Mi Static App</h1>
-  <div id="data">Frontend listo.</div>
+  <div class="chat-container">
+    <header class="chat-header">
+      <div class="header-info">
+        <i class="fas fa-robot"></i>
+        <div>
+          <h1>Azure AI Assistant</h1>
+          <span class="status">
+            <span class="status-dot"></span>
+            En línea
+          </span>
+        </div>
+      </div>
+      <button id="clearChat" class="clear-btn" title="Limpiar chat">
+        <i class="fas fa-trash-alt"></i>
+      </button>
+    </header>
+
+    <main class="chat-messages" id="chatMessages">
+      <div class="message bot">
+        <div class="message-avatar">
+          <i class="fas fa-robot"></i>
+        </div>
+        <div class="message-content">
+          <p>¡Hola! Soy tu asistente de IA powered by Azure OpenAI. ¿En qué puedo ayudarte hoy?</p>
+          <span class="message-time">Ahora</span>
+        </div>
+      </div>
+    </main>
+
+    <footer class="chat-input-container">
+      <form id="chatForm" class="chat-form">
+        <div class="input-wrapper">
+          <textarea
+            id="userInput"
+            placeholder="Escribe tu mensaje aquí..."
+            rows="1"
+            autofocus
+          ></textarea>
+          <button type="submit" id="sendBtn" class="send-btn" disabled>
+            <i class="fas fa-paper-plane"></i>
+          </button>
+        </div>
+      </form>
+      <p class="powered-by">
+        Powered by Azure OpenAI & Container Apps
+      </p>
+    </footer>
+  </div>
+
   <script src="app.js"></script>
 </body>
 </html>
