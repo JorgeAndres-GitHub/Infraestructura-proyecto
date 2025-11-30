@@ -6,19 +6,19 @@ resource "azurerm_cognitive_account" "openai" {
   sku_name            = "S0"
 }
 
-# Deployment del modelo GPT-3.5-Turbo
-resource "azurerm_cognitive_deployment" "gpt35" {
-  name                 = "gpt-35-turbo"
+# Deployment del modelo GPT-4o-mini (reemplaza GPT-3.5-turbo deprecado)
+resource "azurerm_cognitive_deployment" "gpt4omini" {
+  name                 = "gpt-4o-mini"
   cognitive_account_id = azurerm_cognitive_account.openai.id
 
   model {
     format  = "OpenAI"
-    name    = "gpt-35-turbo"
-    version = "0613"
+    name    = "gpt-4o-mini"
+    version = "2024-07-18"
   }
 
   sku {
     name     = "Standard"
-    capacity = 10  # Tokens por minuto (en miles)
+    capacity = 10
   }
 }
