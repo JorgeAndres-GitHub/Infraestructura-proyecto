@@ -1,5 +1,6 @@
-// Configuración de la API
-const API_URL = '/api/chat'; // Ruta del Container App a través de Front Door
+// Configuración de la API - URL del Container App
+const API_BASE_URL = 'https://infradm24-containerapp.mangosand-22523b0d.eastus2.azurecontainerapps.io';
+const API_URL = `${API_BASE_URL}/api/chat`;
 
 // Elementos del DOM
 const chatMessages = document.getElementById('chatMessages');
@@ -84,7 +85,7 @@ async function loadConversationHistory() {
   if (!sessionId) return;
 
   try {
-    const response = await fetch(`/api/conversations/${sessionId}`);
+    const response = await fetch(`${API_BASE_URL}/api/conversations/${sessionId}`);
     if (response.ok) {
       const data = await response.json();
 
@@ -211,7 +212,7 @@ clearBtn.addEventListener('click', async () => {
   // Eliminar conversación de la base de datos si existe
   if (sessionId) {
     try {
-      await fetch(`/api/conversations/${sessionId}`, { method: 'DELETE' });
+      await fetch(`${API_BASE_URL}/api/conversations/${sessionId}`, { method: 'DELETE' });
     } catch (error) {
       console.log('No se pudo eliminar la conversación:', error.message);
     }

@@ -5,13 +5,75 @@ from openai import AzureOpenAI
 import os
 from typing import List, Optional
 from datetime import datetime
+from contextlib import asynccontextmanager
 import pyodbc
 from contextlib import contextmanager
 import uuid
 
-app = FastAPI(title="Azure OpenAI ChatBot API", version="1.0.0")
+# Función para inicializar la base de datos
+def init_database():
+    """Inicializa las tablas de la base de datos"""
+    if not SQL_PASSWORD:
+        print("SQL_PASSWORD no configurado, omitiendo inicialización de BD")
+        return
+    try:
+        conn = pyodbc.connect(get_connection_string())
+        cursor = conn.cursor()
 
-# Configurar CORS
+        # Crear tabla de sesiones de conversación
+        cursor.execute("""
+            IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='conversations' AND xtype='U')
+            CREATE TABLE conversations (
+                id INT IDENTITY(1,1) PRIMARY KEY,
+                session_id NVARCHAR(100) NOT NULL UNIQUE,
+                created_at DATETIME DEFAULT GETDATE(),
+                updated_at DATETIME DEFAULT GETDATE()
+            )
+        """)
+
+        # Crear tabla de mensajes
+        cursor.execute("""
+            IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='messages' AND xtype='U')
+            CREATE TABLE messages (
+                id INT IDENTITY(1,1) PRIMARY KEY,
+                session_id NVARCHAR(100) NOT NULL,
+                role NVARCHAR(20) NOT NULL,
+                content NVARCHAR(MAX) NOT NULL,
+                tokens_used INT DEFAULT 0,
+                created_at DATETIME DEFAULT GETDATE(),
+                FOREIGN KEY (session_id) REFERENCES conversations(session_id)
+            )
+        """)
+
+        conn.commit()
+        conn.close()
+        print("Base de datos inicializada correctamente")
+    except Exception as e:
+        print(f"Error inicializando BD (puede que no haya conexión): {e}")
+
+# Configuración de la base de datos SQL Server
+SQL_SERVER = os.getenv("SQL_SERVER", "infradm24-sqlsrv.database.windows.net")
+SQL_DATABASE = os.getenv("SQL_DATABASE", "dbdemo")
+SQL_USER = os.getenv("SQL_USER", "sqladmin")
+SQL_PASSWORD = os.getenv("SQL_PASSWORD")
+
+# Conexión a la base de datos
+def get_connection_string():
+    return f"DRIVER={{ODBC Driver 18 for SQL Server}};SERVER={SQL_SERVER};DATABASE={SQL_DATABASE};UID={SQL_USER};PWD={SQL_PASSWORD};Encrypt=yes;TrustServerCertificate=no"
+
+# Lifespan para inicialización (reemplaza on_event deprecated)
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    print("Iniciando aplicación...")
+    init_database()
+    yield
+    # Shutdown
+    print("Cerrando aplicación...")
+
+app = FastAPI(title="Azure OpenAI ChatBot API", version="1.0.0", lifespan=lifespan)
+
+# Configurar CORS - permitir todas las origenes para Static Web App
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -21,20 +83,19 @@ app.add_middleware(
 )
 
 # Configuración de Azure OpenAI desde variables de entorno
-client = AzureOpenAI(
-    api_key=os.getenv("AZURE_OPENAI_API_KEY"),
-    api_version="2024-02-01",
-    azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT")
-)
+def get_openai_client():
+    api_key = os.getenv("AZURE_OPENAI_API_KEY")
+    endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
+    if not api_key or not endpoint:
+        return None
+    return AzureOpenAI(
+        api_key=api_key,
+        api_version="2024-02-01",
+        azure_endpoint=endpoint
+    )
 
 # Nombre del deployment de tu modelo en Azure OpenAI
-DEPLOYMENT_NAME = os.getenv("AZURE_OPENAI_DEPLOYMENT", "gpt-35-turbo")
-
-# Configuración de la base de datos SQL Server (infradm24-sqlsrv.database.windows.net)
-SQL_SERVER = os.getenv("SQL_SERVER", "infradm24-sqlsrv.database.windows.net")
-SQL_DATABASE = os.getenv("SQL_DATABASE", "dbdemo")
-SQL_USER = os.getenv("SQL_USER", "sqladmin")
-SQL_PASSWORD = os.getenv("SQL_PASSWORD")
+DEPLOYMENT_NAME = os.getenv("AZURE_OPENAI_DEPLOYMENT", "gpt-4o-mini")
 
 # Modelos Pydantic
 class Message(BaseModel):
@@ -55,10 +116,6 @@ class ConversationHistory(BaseModel):
     messages: List[Message]
     created_at: datetime
 
-# Conexión a la base de datos
-def get_connection_string():
-    return f"DRIVER={{ODBC Driver 18 for SQL Server}};SERVER={SQL_SERVER};DATABASE={SQL_DATABASE};UID={SQL_USER};PWD={SQL_PASSWORD};Encrypt=yes;TrustServerCertificate=no"
-
 @contextmanager
 def get_db_connection():
     conn = None
@@ -71,48 +128,6 @@ def get_db_connection():
     finally:
         if conn:
             conn.close()
-
-def init_database():
-    """Inicializa las tablas de la base de datos"""
-    try:
-        with get_db_connection() as conn:
-            cursor = conn.cursor()
-
-            # Crear tabla de sesiones de conversación
-            cursor.execute("""
-                IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='conversations' AND xtype='U')
-                CREATE TABLE conversations (
-                    id INT IDENTITY(1,1) PRIMARY KEY,
-                    session_id NVARCHAR(100) NOT NULL UNIQUE,
-                    created_at DATETIME DEFAULT GETDATE(),
-                    updated_at DATETIME DEFAULT GETDATE()
-                )
-            """)
-
-            # Crear tabla de mensajes
-            cursor.execute("""
-                IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='messages' AND xtype='U')
-                CREATE TABLE messages (
-                    id INT IDENTITY(1,1) PRIMARY KEY,
-                    session_id NVARCHAR(100) NOT NULL,
-                    role NVARCHAR(20) NOT NULL,
-                    content NVARCHAR(MAX) NOT NULL,
-                    tokens_used INT DEFAULT 0,
-                    created_at DATETIME DEFAULT GETDATE(),
-                    FOREIGN KEY (session_id) REFERENCES conversations(session_id)
-                )
-            """)
-
-            conn.commit()
-            print("Base de datos inicializada correctamente")
-    except Exception as e:
-        print(f"Error inicializando BD (puede que no haya conexión): {e}")
-
-# Inicializar BD al arrancar
-@app.on_event("startup")
-async def startup_event():
-    if SQL_PASSWORD:
-        init_database()
 
 def save_message(session_id: str, role: str, content: str, tokens: int = 0):
     """Guarda un mensaje en la base de datos"""
@@ -185,6 +200,11 @@ async def health():
 async def chat(request: ChatRequest):
     """Endpoint principal del chatbot"""
     try:
+        # Verificar que OpenAI está configurado
+        client = get_openai_client()
+        if not client:
+            raise HTTPException(status_code=503, detail="Azure OpenAI no está configurado")
+        
         # Generar o usar session_id existente
         session_id = request.session_id or str(uuid.uuid4())
 
