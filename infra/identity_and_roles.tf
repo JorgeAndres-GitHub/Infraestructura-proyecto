@@ -18,10 +18,10 @@ resource "azurerm_key_vault_access_policy" "ca_kv_policy" {
 }
 
 # NOTA: Los role assignments requieren permisos de Owner o User Access Administrator
-# Si tu Service Principal solo tiene Contributor, estos role assignments deben 
+# Si tu Service Principal solo tiene Contributor, estos role assignments deben
 # asignarse manualmente desde el portal de Azure o con un usuario con más permisos.
-# 
+#
 # Roles necesarios (asignar manualmente si es necesario):
 # - Reader sobre el Resource Group
-# - Storage Blob Data Contributor sobre el Storage Account  
+# - Storage Blob Data Contributor sobre el Storage Account
 # - Cognitive Services OpenAI User sobre el recurso OpenAI

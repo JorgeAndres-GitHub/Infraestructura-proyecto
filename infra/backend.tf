@@ -1,14 +1,11 @@
 # Backend configuration for Terraform state
-# Descomentar y configurar cuando tengas el storage account para el state
+# El estado se guarda en Azure Storage para persistir entre ejecuciones
 
-# terraform {
-#   backend "azurerm" {
-#     resource_group_name  = "rg-terraform-state"
-#     storage_account_name = "tfstatejhdemo"
-#     container_name       = "tfstate"
-#     key                  = "proyecto.tfstate"
-#   }
-# }
-
-# Para usar backend local (desarrollo), deja esto comentado
-# y el state se guardará localmente
+terraform {
+  backend "azurerm" {
+    resource_group_name  = "rg-terraform-state"
+    storage_account_name = "tfstateinfradm24"
+    container_name       = "tfstate"
+    key                  = "proyecto.tfstate"
+  }
+}
