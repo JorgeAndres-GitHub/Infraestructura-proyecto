@@ -229,7 +229,7 @@ clearBtn.addEventListener('click', async () => {
         <i class="fas fa-robot"></i>
       </div>
       <div class="message-content">
-        <p>¡Hola! Soy tu asistente de IA powered by Azure OpenAI. ¿En qué puedo ayudarte hoy?</p>
+        <p>¡Hola! Soy NullBot, el asistente de IA del grupo de trabajo Null. Estoy powered by Azure OpenAI. ¿En qué puedo ayudarte hoy?</p>
         <span class="message-time">Ahora</span>
       </div>
     </div>
