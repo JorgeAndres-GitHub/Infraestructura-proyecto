@@ -73,13 +73,23 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Azure OpenAI ChatBot API", version="1.0.0", lifespan=lifespan)
 
-# Configurar CORS - permitir todas las origenes para Static Web App
+# Configurar CORS - permitir orígenes específicos para Static Web App
+origins = [
+    "https://nice-grass-07d55370f.3.azurestaticapps.net",
+    "https://nice-grass-07d55370f.azurestaticapps.net",
+    "http://localhost:3000",
+    "http://localhost:8080",
+    "http://127.0.0.1:5500",
+    "*"
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
+    allow_origins=origins,
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 # Configuración de Azure OpenAI desde variables de entorno
