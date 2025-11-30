@@ -204,7 +204,7 @@ async def chat(request: ChatRequest):
         client = get_openai_client()
         if not client:
             raise HTTPException(status_code=503, detail="Azure OpenAI no está configurado")
-        
+
         # Generar o usar session_id existente
         session_id = request.session_id or str(uuid.uuid4())
 
