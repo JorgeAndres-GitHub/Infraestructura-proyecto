@@ -12,14 +12,28 @@ resource "azurerm_key_vault_access_policy" "ca_kv_policy" {
   object_id    = azurerm_user_assigned_identity.ca_identity.principal_id
 
   secret_permissions = [
-    "get",
-    "list"
+    "Get",
+    "List"
   ]
 }
 
-# Opcional: asignar rol Reader al identity sobre el resource group (según necesidad)
+# Rol Reader sobre el resource group
 resource "azurerm_role_assignment" "ca_rg_reader" {
   scope                = azurerm_resource_group.rg.id
   role_definition_name = "Reader"
+  principal_id         = azurerm_user_assigned_identity.ca_identity.principal_id
+}
+
+# Rol para acceder a Storage Blob Data
+resource "azurerm_role_assignment" "ca_storage_blob" {
+  scope                = azurerm_storage_account.storage.id
+  role_definition_name = "Storage Blob Data Contributor"
+  principal_id         = azurerm_user_assigned_identity.ca_identity.principal_id
+}
+
+# Rol para acceder a Azure OpenAI
+resource "azurerm_role_assignment" "ca_openai" {
+  scope                = azurerm_cognitive_account.openai.id
+  role_definition_name = "Cognitive Services OpenAI User"
   principal_id         = azurerm_user_assigned_identity.ca_identity.principal_id
 }

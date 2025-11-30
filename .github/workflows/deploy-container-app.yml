@@ -1,0 +1,69 @@
+name: 'Deploy Container App'
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'api/**'
+      - 'Dockerfile'
+      - '.github/workflows/deploy-container-app.yml'
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: 'Tag de la imagen a desplegar'
+        required: false
+        default: 'latest'
+
+env:
+  AZURE_CONTAINER_REGISTRY: ${{ secrets.ACR_LOGIN_SERVER }}
+  CONTAINER_APP_NAME: jhdemo-containerapp
+  RESOURCE_GROUP: rg-proyecto-demo
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    name: Build and Push Container Image
+
+    # Solo ejecutar si existe un Dockerfile
+    # Si no tienes API propia, este job se puede omitir
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Login to ACR
+        if: env.AZURE_CONTAINER_REGISTRY != ''
+        run: |
+          az acr login --name ${{ env.AZURE_CONTAINER_REGISTRY }}
+
+      # Descomentar cuando tengas tu propio Dockerfile y API
+      # - name: Build and Push Image
+      #   if: env.AZURE_CONTAINER_REGISTRY != ''
+      #   run: |
+      #     docker build -t ${{ env.AZURE_CONTAINER_REGISTRY }}/api:${{ github.sha }} .
+      #     docker push ${{ env.AZURE_CONTAINER_REGISTRY }}/api:${{ github.sha }}
+
+  deploy:
+    runs-on: ubuntu-latest
+    name: Deploy to Container App
+    needs: build
+
+    steps:
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Deploy to Container App
+        uses: azure/container-apps-deploy-action@v1
+        with:
+          resourceGroup: ${{ env.RESOURCE_GROUP }}
+          containerAppName: ${{ env.CONTAINER_APP_NAME }}
+          # Usar imagen por defecto si no hay ACR configurado
+          imageToDeploy: ${{ env.AZURE_CONTAINER_REGISTRY != '' && format('{0}/api:{1}', env.AZURE_CONTAINER_REGISTRY, github.sha) || 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest' }}

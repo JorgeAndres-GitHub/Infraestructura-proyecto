@@ -18,6 +18,12 @@ resource "azurerm_container_app" "api" {
     ]
   }
 
+  # Secrets del Container App (referenciando Key Vault)
+  secret {
+    name  = "sql-admin-password"
+    value = var.sql_admin_pass
+  }
+
   template {
     container {
       name   = "api"
@@ -35,8 +41,29 @@ resource "azurerm_container_app" "api" {
         value = azurerm_mssql_database.sqldb.name
       }
 
-      # No ponemos la contraseña aquí; la añadiremos como secret reference
+      env {
+        name        = "SQL_ADMIN_PASSWORD"
+        secret_name = "sql-admin-password"
+      }
+
+      env {
+        name  = "AZURE_OPENAI_ENDPOINT"
+        value = azurerm_cognitive_account.openai.endpoint
+      }
+
+      env {
+        name  = "STORAGE_BLOB_ENDPOINT"
+        value = azurerm_storage_account.storage.primary_blob_endpoint
+      }
+
+      env {
+        name  = "KEY_VAULT_URI"
+        value = azurerm_key_vault.kv.vault_uri
+      }
     }
+
+    min_replicas = 0
+    max_replicas = 3
   }
 
   ingress {
@@ -46,26 +73,6 @@ resource "azurerm_container_app" "api" {
     traffic_weight {
       percentage      = 100
       latest_revision = true
-    }
-  }
-
-  # secrets: traer el valor del Key Vault secret al Container App como secret value
-  # NOTA: azurerm_container_app supports secrets block; but to reference Key Vault automatically there are features requiring provider features.
-  # Simplificamos: copiamos el secret value from Key Vault (not ideal for prod). Better: use Managed Identity + KeyVault provider in app to fetch secret at runtime.
-  # Aquí añadimos una secret local con el valor (solo para demo)
-  secret {
-    name  = "SQL_ADMIN_PASSWORD"
-    value = azurerm_key_vault_secret.sql_password.value
-  }
-
-  # Inyectar el secret como env var
-  template {
-    container {
-      name = "api"
-      env {
-        name = "SQL_ADMIN_PASSWORD"
-        secret_ref = "SQL_ADMIN_PASSWORD"
-      }
     }
   }
 }

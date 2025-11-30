@@ -21,11 +21,19 @@ variable "sql_admin_user" {
 variable "sql_admin_pass" {
   type        = string
   description = "Contraseña para el administrador SQL. Cambia en producción"
-  default     = "P@ssw0rdDemo123!" 
+  sensitive   = true
+  default     = "P@ssw0rdDemo123!"
 }
 
 # tu IP pública para abrir firewall (opcional)
 variable "my_ip" {
   type    = string
   default = ""  # deja vacío para no crear regla IP, o pon tu IP "1.2.3.4"
+}
+
+# Container image para la API (se puede cambiar desde GitHub Actions)
+variable "container_image" {
+  type        = string
+  description = "Imagen de container para la API"
+  default     = "mcr.microsoft.com/azuredocs/containerapps-helloworld:latest"
 }

@@ -3,11 +3,20 @@ output "resource_group" {
 }
 
 output "static_app_url" {
-  value = azurerm_static_web_app.static_app.default_host_name
+  value = "https://${azurerm_static_web_app.static_app.default_host_name}"
+}
+
+output "static_app_api_key" {
+  value     = azurerm_static_web_app.static_app.api_key
+  sensitive = true
 }
 
 output "container_app_url" {
-  value = azurerm_container_app.api.latest_revision_fqdn
+  value = "https://${azurerm_container_app.api.ingress[0].fqdn}"
+}
+
+output "frontdoor_endpoint" {
+  value = "https://${azurerm_cdn_frontdoor_endpoint.endpoint.host_name}"
 }
 
 output "sql_server_fqdn" {
