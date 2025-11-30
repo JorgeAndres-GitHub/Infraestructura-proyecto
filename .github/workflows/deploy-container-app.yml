@@ -78,6 +78,15 @@ jobs:
 
       - name: Deploy to Container App
         run: |
+          # Primero configurar el registro en la Container App
+          az containerapp registry set \
+            --name ${{ env.CONTAINER_APP_NAME }} \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --server ${{ steps.acr-creds.outputs.server }} \
+            --username ${{ steps.acr-creds.outputs.username }} \
+            --password ${{ steps.acr-creds.outputs.password }}
+
+          # Luego actualizar la imagen y variables de entorno
           az containerapp update \
             --name ${{ env.CONTAINER_APP_NAME }} \
             --resource-group ${{ env.RESOURCE_GROUP }} \
@@ -85,11 +94,8 @@ jobs:
             --set-env-vars \
               "AZURE_OPENAI_ENDPOINT=${{ steps.kv-secrets.outputs.endpoint }}" \
               "AZURE_OPENAI_API_KEY=${{ steps.kv-secrets.outputs.key }}" \
-              "AZURE_OPENAI_DEPLOYMENT=gpt-35-turbo" \
+              "AZURE_OPENAI_DEPLOYMENT=gpt-4o-mini" \
               "SQL_SERVER=infradm24-sqlsrv.database.windows.net" \
               "SQL_DATABASE=dbdemo" \
               "SQL_USER=sqladmin" \
-              "SQL_PASSWORD=${{ steps.kv-secrets.outputs.sql_password }}" \
-            --registry-server ${{ steps.acr-creds.outputs.server }} \
-            --registry-username ${{ steps.acr-creds.outputs.username }} \
-            --registry-password ${{ steps.acr-creds.outputs.password }}
+              "SQL_PASSWORD=${{ steps.kv-secrets.outputs.sql_password }}"
