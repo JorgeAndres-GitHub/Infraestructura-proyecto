@@ -1,19 +1,19 @@
 name: 'Deploy Container App'
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'api/**'
-      - 'Dockerfile'
-      - '.github/workflows/deploy-container-app.yml'
+  # Solo se ejecuta manualmente o cuando Terraform termina
   workflow_dispatch:
     inputs:
       image_tag:
         description: 'Tag de la imagen a desplegar'
         required: false
         default: 'latest'
+  workflow_run:
+    workflows: ["Terraform Infrastructure"]
+    types:
+      - completed
+    branches:
+      - main
 
 env:
   AZURE_CONTAINER_REGISTRY: ${{ secrets.ACR_LOGIN_SERVER }}
@@ -22,6 +22,8 @@ env:
 
 jobs:
   build:
+    # Solo ejecutar si Terraform fue exitoso (o si es manual)
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     name: Build and Push Container Image
 

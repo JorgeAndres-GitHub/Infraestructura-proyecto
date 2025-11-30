@@ -17,23 +17,11 @@ resource "azurerm_key_vault_access_policy" "ca_kv_policy" {
   ]
 }
 
-# Rol Reader sobre el resource group
-resource "azurerm_role_assignment" "ca_rg_reader" {
-  scope                = azurerm_resource_group.rg.id
-  role_definition_name = "Reader"
-  principal_id         = azurerm_user_assigned_identity.ca_identity.principal_id
-}
-
-# Rol para acceder a Storage Blob Data
-resource "azurerm_role_assignment" "ca_storage_blob" {
-  scope                = azurerm_storage_account.storage.id
-  role_definition_name = "Storage Blob Data Contributor"
-  principal_id         = azurerm_user_assigned_identity.ca_identity.principal_id
-}
-
-# Rol para acceder a Azure OpenAI
-resource "azurerm_role_assignment" "ca_openai" {
-  scope                = azurerm_cognitive_account.openai.id
-  role_definition_name = "Cognitive Services OpenAI User"
-  principal_id         = azurerm_user_assigned_identity.ca_identity.principal_id
-}
+# NOTA: Los role assignments requieren permisos de Owner o User Access Administrator
+# Si tu Service Principal solo tiene Contributor, estos role assignments deben 
+# asignarse manualmente desde el portal de Azure o con un usuario con más permisos.
+# 
+# Roles necesarios (asignar manualmente si es necesario):
+# - Reader sobre el Resource Group
+# - Storage Blob Data Contributor sobre el Storage Account  
+# - Cognitive Services OpenAI User sobre el recurso OpenAI
