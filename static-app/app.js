@@ -61,14 +61,14 @@ function createNewChat() {
     sessionId: null,
     autoNamed: false
   };
-  
+
   chats.unshift(newChat);
   currentChatId = newChat.id;
   isFirstMessage = true;
   saveChats();
   renderChatList();
   loadChat(newChat.id);
-  
+
   // Cerrar sidebar en móvil
   if (window.innerWidth <= 768) {
     sidebar.classList.remove('open');
@@ -80,19 +80,19 @@ function generateChatName(message) {
   // Tomar las primeras palabras del mensaje
   const words = message.trim().split(/\s+/).slice(0, 5);
   let title = words.join(' ');
-  
+
   // Limitar longitud
   if (title.length > 30) {
     title = title.substring(0, 30) + '...';
   }
-  
+
   return title || 'Nuevo Chat';
 }
 
 // Renderizar lista de chats
 function renderChatList() {
   chatList.innerHTML = '';
-  
+
   if (chats.length === 0) {
     chatList.innerHTML = `
       <div class="empty-state">
@@ -102,18 +102,18 @@ function renderChatList() {
     `;
     return;
   }
-  
+
   chats.forEach(chat => {
     const chatItem = document.createElement('div');
     chatItem.className = `chat-item ${chat.id === currentChatId ? 'active' : ''}`;
     chatItem.onclick = () => loadChat(chat.id);
-    
-    const lastMessage = chat.messages.length > 0 
+
+    const lastMessage = chat.messages.length > 0
       ? chat.messages[chat.messages.length - 1].content.substring(0, 40) + '...'
       : 'Sin mensajes';
-    
+
     const timeAgo = getTimeAgo(new Date(chat.updatedAt));
-    
+
     chatItem.innerHTML = `
       <i class="fas fa-message chat-item-icon"></i>
       <div class="chat-item-content">
@@ -122,7 +122,7 @@ function renderChatList() {
       </div>
       <span class="chat-item-time">${timeAgo}</span>
     `;
-    
+
     chatList.appendChild(chatItem);
   });
 }
@@ -134,7 +134,7 @@ function getTimeAgo(date) {
   const diffMins = Math.floor(diffMs / 60000);
   const diffHours = Math.floor(diffMs / 3600000);
   const diffDays = Math.floor(diffMs / 86400000);
-  
+
   if (diffMins < 1) return 'Ahora';
   if (diffMins < 60) return `${diffMins}m`;
   if (diffHours < 24) return `${diffHours}h`;
@@ -146,18 +146,18 @@ function getTimeAgo(date) {
 function loadChat(chatId) {
   const chat = chats.find(c => c.id === chatId);
   if (!chat) return;
-  
+
   currentChatId = chatId;
   isFirstMessage = chat.messages.length === 0;
   saveChats();
-  
+
   // Actualizar header
   currentChatTitle.textContent = chat.title;
   chatSubtitle.textContent = 'Grupo de trabajo Null';
-  
+
   // Limpiar y cargar mensajes
   chatMessages.innerHTML = '';
-  
+
   // Mensaje de bienvenida si no hay mensajes
   if (chat.messages.length === 0) {
     const welcomeMsg = createMessageElement(
@@ -172,7 +172,7 @@ function loadChat(chatId) {
       chatMessages.appendChild(element);
     });
   }
-  
+
   scrollToBottom();
   renderChatList();
 }
@@ -249,7 +249,7 @@ function scrollToBottom() {
 async function sendMessage(message) {
   const chat = chats.find(c => c.id === currentChatId);
   if (!chat) return;
-  
+
   // Mostrar indicador de escritura
   const typingIndicator = createTypingIndicator();
   chatMessages.appendChild(typingIndicator);
@@ -285,14 +285,14 @@ async function sendMessage(message) {
     // Guardar mensaje del bot
     chat.messages.push({ role: 'assistant', content: botMessage });
     chat.updatedAt = new Date().toISOString();
-    
+
     // Auto-nombrar el chat basado en el primer mensaje del usuario
     if (isFirstMessage && !chat.autoNamed) {
       chat.title = generateChatName(message);
       chat.autoNamed = true;
       currentChatTitle.textContent = chat.title;
     }
-    
+
     isFirstMessage = false;
     saveChats();
     renderChatList();
@@ -325,7 +325,7 @@ chatForm.addEventListener('submit', async (e) => {
 
   const message = userInput.value.trim();
   if (!message) return;
-  
+
   const chat = chats.find(c => c.id === currentChatId);
   if (!chat) return;
 
@@ -418,9 +418,9 @@ document.addEventListener('keydown', (e) => {
 deleteChatBtn.addEventListener('click', async () => {
   const chat = chats.find(c => c.id === currentChatId);
   if (!chat) return;
-  
+
   if (!confirm(`¿Estás seguro de eliminar "${chat.title}"?`)) return;
-  
+
   // Eliminar de la base de datos si tiene sessionId
   if (chat.sessionId) {
     try {
@@ -429,10 +429,10 @@ deleteChatBtn.addEventListener('click', async () => {
       console.log('No se pudo eliminar la conversación del servidor:', error.message);
     }
   }
-  
+
   // Eliminar del array
   chats = chats.filter(c => c.id !== currentChatId);
-  
+
   // Crear nuevo chat si no quedan
   if (chats.length === 0) {
     createNewChat();
@@ -440,7 +440,7 @@ deleteChatBtn.addEventListener('click', async () => {
     currentChatId = chats[0].id;
     loadChat(currentChatId);
   }
-  
+
   saveChats();
   renderChatList();
 });

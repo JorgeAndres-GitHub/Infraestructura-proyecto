@@ -177,7 +177,3 @@ Después del despliegue, obtendrás:
 cd infra
 terraform destroy
 ```
-
-## 📄 Licencia
-
-MIT
