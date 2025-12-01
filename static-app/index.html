@@ -8,53 +8,91 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
 </head>
 <body>
-  <div class="chat-container">
-    <header class="chat-header">
-      <div class="header-info">
-        <i class="fas fa-robot"></i>
-        <div>
-          <h1>NullBot Chat</h1>
-          <span class="status">
-            <span class="status-dot"></span>
-            En línea
-          </span>
-        </div>
+  <div class="app-container">
+    <!-- Sidebar con lista de chats -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <h2><i class="fas fa-robot"></i> NullBot</h2>
+        <button id="newChatBtn" class="new-chat-btn" title="Nuevo chat">
+          <i class="fas fa-plus"></i> Nuevo Chat
+        </button>
       </div>
-      <button id="clearChat" class="clear-btn" title="Limpiar chat">
-        <i class="fas fa-trash-alt"></i>
-      </button>
-    </header>
-
-    <main class="chat-messages" id="chatMessages">
-      <div class="message bot">
-        <div class="message-avatar">
-          <i class="fas fa-robot"></i>
-        </div>
-        <div class="message-content">
-          <p>¡Hola! Soy NullBot, el asistente de IA del grupo de trabajo Null. Estoy powered by Azure OpenAI. ¿En qué puedo ayudarte hoy?</p>
-          <span class="message-time">Ahora</span>
-        </div>
+      <div class="chat-list" id="chatList">
+        <!-- Los chats se cargarán dinámicamente -->
       </div>
-    </main>
+      <div class="sidebar-footer">
+        <span class="status">
+          <span class="status-dot"></span>
+          En línea
+        </span>
+      </div>
+    </aside>
 
-    <footer class="chat-input-container">
-      <form id="chatForm" class="chat-form">
-        <div class="input-wrapper">
-          <textarea
-            id="userInput"
-            placeholder="Escribe tu mensaje aquí..."
-            rows="1"
-            autofocus
-          ></textarea>
-          <button type="submit" id="sendBtn" class="send-btn" disabled>
-            <i class="fas fa-paper-plane"></i>
+    <!-- Área principal del chat -->
+    <div class="chat-container">
+      <header class="chat-header">
+        <button id="toggleSidebar" class="toggle-sidebar-btn" title="Menú">
+          <i class="fas fa-bars"></i>
+        </button>
+        <div class="header-info">
+          <div class="current-chat-info">
+            <h1 id="currentChatTitle">NullBot Chat</h1>
+            <span class="chat-subtitle" id="chatSubtitle">Grupo de trabajo Null</span>
+          </div>
+        </div>
+        <div class="header-actions">
+          <button id="renameChatBtn" class="action-btn" title="Renombrar chat">
+            <i class="fas fa-edit"></i>
+          </button>
+          <button id="deleteChatBtn" class="action-btn danger" title="Eliminar chat">
+            <i class="fas fa-trash-alt"></i>
           </button>
         </div>
-      </form>
-      <p class="powered-by">
-        Powered by Azure OpenAI & Container Apps
-      </p>
-    </footer>
+      </header>
+
+      <main class="chat-messages" id="chatMessages">
+        <div class="message bot">
+          <div class="message-avatar">
+            <i class="fas fa-robot"></i>
+          </div>
+          <div class="message-content">
+            <p>¡Hola! Soy NullBot, el asistente de IA del grupo de trabajo Null. Estoy powered by Azure OpenAI. ¿En qué puedo ayudarte hoy?</p>
+            <span class="message-time">Ahora</span>
+          </div>
+        </div>
+      </main>
+
+      <footer class="chat-input-container">
+        <form id="chatForm" class="chat-form">
+          <div class="input-wrapper">
+            <textarea
+              id="userInput"
+              placeholder="Escribe tu mensaje aquí..."
+              rows="1"
+              autofocus
+            ></textarea>
+            <button type="submit" id="sendBtn" class="send-btn" disabled>
+              <i class="fas fa-paper-plane"></i>
+            </button>
+          </div>
+        </form>
+        <p class="powered-by">
+          Powered by Azure OpenAI & Container Apps
+        </p>
+      </footer>
+    </div>
+  </div>
+
+  <!-- Modal para renombrar chat -->
+  <div class="modal" id="renameModal">
+    <div class="modal-content">
+      <h3>Renombrar Chat</h3>
+      <input type="text" id="renameInput" placeholder="Nombre del chat..." maxlength="50" />
+      <div class="modal-actions">
+        <button id="cancelRename" class="btn-secondary">Cancelar</button>
+        <button id="confirmRename" class="btn-primary">Guardar</button>
+      </div>
+    </div>
   </div>
 
   <script src="app.js"></script>

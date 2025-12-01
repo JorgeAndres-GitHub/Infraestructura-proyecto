@@ -7,10 +7,175 @@ const chatMessages = document.getElementById('chatMessages');
 const chatForm = document.getElementById('chatForm');
 const userInput = document.getElementById('userInput');
 const sendBtn = document.getElementById('sendBtn');
-const clearBtn = document.getElementById('clearChat');
+const chatList = document.getElementById('chatList');
+const newChatBtn = document.getElementById('newChatBtn');
+const toggleSidebarBtn = document.getElementById('toggleSidebar');
+const sidebar = document.getElementById('sidebar');
+const currentChatTitle = document.getElementById('currentChatTitle');
+const chatSubtitle = document.getElementById('chatSubtitle');
+const renameChatBtn = document.getElementById('renameChatBtn');
+const deleteChatBtn = document.getElementById('deleteChatBtn');
+const renameModal = document.getElementById('renameModal');
+const renameInput = document.getElementById('renameInput');
+const confirmRename = document.getElementById('confirmRename');
+const cancelRename = document.getElementById('cancelRename');
 
-// Session ID - Persistente en el navegador del usuario
-let sessionId = localStorage.getItem('chatbot_session_id');
+// Estado de la aplicación
+let chats = JSON.parse(localStorage.getItem('nullbot_chats')) || [];
+let currentChatId = localStorage.getItem('nullbot_current_chat');
+let isFirstMessage = true;
+
+// Inicializar la aplicación
+function init() {
+  if (chats.length === 0) {
+    createNewChat();
+  } else {
+    if (!currentChatId || !chats.find(c => c.id === currentChatId)) {
+      currentChatId = chats[0].id;
+    }
+    loadChat(currentChatId);
+  }
+  renderChatList();
+  console.log('NullBot Chat initialized');
+}
+
+// Generar ID único
+function generateId() {
+  return 'chat_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+}
+
+// Guardar chats en localStorage
+function saveChats() {
+  localStorage.setItem('nullbot_chats', JSON.stringify(chats));
+  localStorage.setItem('nullbot_current_chat', currentChatId);
+}
+
+// Crear nuevo chat
+function createNewChat() {
+  const newChat = {
+    id: generateId(),
+    title: 'Nuevo Chat',
+    messages: [],
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    sessionId: null,
+    autoNamed: false
+  };
+  
+  chats.unshift(newChat);
+  currentChatId = newChat.id;
+  isFirstMessage = true;
+  saveChats();
+  renderChatList();
+  loadChat(newChat.id);
+  
+  // Cerrar sidebar en móvil
+  if (window.innerWidth <= 768) {
+    sidebar.classList.remove('open');
+  }
+}
+
+// Generar nombre automático basado en el primer mensaje
+function generateChatName(message) {
+  // Tomar las primeras palabras del mensaje
+  const words = message.trim().split(/\s+/).slice(0, 5);
+  let title = words.join(' ');
+  
+  // Limitar longitud
+  if (title.length > 30) {
+    title = title.substring(0, 30) + '...';
+  }
+  
+  return title || 'Nuevo Chat';
+}
+
+// Renderizar lista de chats
+function renderChatList() {
+  chatList.innerHTML = '';
+  
+  if (chats.length === 0) {
+    chatList.innerHTML = `
+      <div class="empty-state">
+        <i class="fas fa-comments"></i>
+        <p>No hay chats aún</p>
+      </div>
+    `;
+    return;
+  }
+  
+  chats.forEach(chat => {
+    const chatItem = document.createElement('div');
+    chatItem.className = `chat-item ${chat.id === currentChatId ? 'active' : ''}`;
+    chatItem.onclick = () => loadChat(chat.id);
+    
+    const lastMessage = chat.messages.length > 0 
+      ? chat.messages[chat.messages.length - 1].content.substring(0, 40) + '...'
+      : 'Sin mensajes';
+    
+    const timeAgo = getTimeAgo(new Date(chat.updatedAt));
+    
+    chatItem.innerHTML = `
+      <i class="fas fa-message chat-item-icon"></i>
+      <div class="chat-item-content">
+        <div class="chat-item-title">${escapeHtml(chat.title)}</div>
+        <div class="chat-item-preview">${escapeHtml(lastMessage)}</div>
+      </div>
+      <span class="chat-item-time">${timeAgo}</span>
+    `;
+    
+    chatList.appendChild(chatItem);
+  });
+}
+
+// Obtener tiempo relativo
+function getTimeAgo(date) {
+  const now = new Date();
+  const diffMs = now - date;
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+  
+  if (diffMins < 1) return 'Ahora';
+  if (diffMins < 60) return `${diffMins}m`;
+  if (diffHours < 24) return `${diffHours}h`;
+  if (diffDays < 7) return `${diffDays}d`;
+  return date.toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
+}
+
+// Cargar un chat
+function loadChat(chatId) {
+  const chat = chats.find(c => c.id === chatId);
+  if (!chat) return;
+  
+  currentChatId = chatId;
+  isFirstMessage = chat.messages.length === 0;
+  saveChats();
+  
+  // Actualizar header
+  currentChatTitle.textContent = chat.title;
+  chatSubtitle.textContent = 'Grupo de trabajo Null';
+  
+  // Limpiar y cargar mensajes
+  chatMessages.innerHTML = '';
+  
+  // Mensaje de bienvenida si no hay mensajes
+  if (chat.messages.length === 0) {
+    const welcomeMsg = createMessageElement(
+      '¡Hola! Soy NullBot, el asistente de IA del grupo de trabajo Null. Estoy powered by Azure OpenAI. ¿En qué puedo ayudarte hoy?',
+      false
+    );
+    chatMessages.appendChild(welcomeMsg);
+  } else {
+    // Cargar mensajes existentes
+    chat.messages.forEach(msg => {
+      const element = createMessageElement(msg.content, msg.role === 'user');
+      chatMessages.appendChild(element);
+    });
+  }
+  
+  scrollToBottom();
+  renderChatList();
+}
 
 // Formatear hora
 function formatTime(date) {
@@ -80,37 +245,11 @@ function scrollToBottom() {
   chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 
-// Cargar historial desde la base de datos
-async function loadConversationHistory() {
-  if (!sessionId) return;
-
-  try {
-    const response = await fetch(`${API_BASE_URL}/api/conversations/${sessionId}`);
-    if (response.ok) {
-      const data = await response.json();
-
-      // Mostrar mensajes anteriores
-      if (data.messages && data.messages.length > 0) {
-        // Limpiar mensaje de bienvenida
-        chatMessages.innerHTML = '';
-
-        // Agregar cada mensaje del historial
-        data.messages.forEach(msg => {
-          const element = createMessageElement(msg.content, msg.role === 'user');
-          chatMessages.appendChild(element);
-        });
-
-        scrollToBottom();
-        console.log(`Historial cargado: ${data.messages.length} mensajes`);
-      }
-    }
-  } catch (error) {
-    console.log('No se pudo cargar el historial:', error.message);
-  }
-}
-
 // Enviar mensaje a la API
 async function sendMessage(message) {
+  const chat = chats.find(c => c.id === currentChatId);
+  if (!chat) return;
+  
   // Mostrar indicador de escritura
   const typingIndicator = createTypingIndicator();
   chatMessages.appendChild(typingIndicator);
@@ -124,7 +263,7 @@ async function sendMessage(message) {
       },
       body: JSON.stringify({
         messages: [{ role: 'user', content: message }],
-        session_id: sessionId  // Enviar session_id para persistencia
+        session_id: chat.sessionId
       })
     });
 
@@ -139,11 +278,24 @@ async function sendMessage(message) {
     const botMessage = data.message || 'Sin respuesta';
 
     // Guardar session_id si es nuevo
-    if (data.session_id && !sessionId) {
-      sessionId = data.session_id;
-      localStorage.setItem('chatbot_session_id', sessionId);
-      console.log('Nueva sesión creada:', sessionId);
+    if (data.session_id && !chat.sessionId) {
+      chat.sessionId = data.session_id;
     }
+
+    // Guardar mensaje del bot
+    chat.messages.push({ role: 'assistant', content: botMessage });
+    chat.updatedAt = new Date().toISOString();
+    
+    // Auto-nombrar el chat basado en el primer mensaje del usuario
+    if (isFirstMessage && !chat.autoNamed) {
+      chat.title = generateChatName(message);
+      chat.autoNamed = true;
+      currentChatTitle.textContent = chat.title;
+    }
+    
+    isFirstMessage = false;
+    saveChats();
+    renderChatList();
 
     // Mostrar respuesta del bot
     const botElement = createMessageElement(botMessage, false);
@@ -173,6 +325,19 @@ chatForm.addEventListener('submit', async (e) => {
 
   const message = userInput.value.trim();
   if (!message) return;
+  
+  const chat = chats.find(c => c.id === currentChatId);
+  if (!chat) return;
+
+  // Si es el primer mensaje, limpiar el mensaje de bienvenida
+  if (chat.messages.length === 0) {
+    chatMessages.innerHTML = '';
+  }
+
+  // Guardar mensaje del usuario
+  chat.messages.push({ role: 'user', content: message });
+  chat.updatedAt = new Date().toISOString();
+  saveChats();
 
   // Mostrar mensaje del usuario
   const userElement = createMessageElement(message, true);
@@ -189,10 +354,7 @@ chatForm.addEventListener('submit', async (e) => {
 
 // Auto-resize del textarea
 userInput.addEventListener('input', () => {
-  // Habilitar/deshabilitar botón de envío
   sendBtn.disabled = !userInput.value.trim();
-
-  // Auto-resize
   userInput.style.height = 'auto';
   userInput.style.height = Math.min(userInput.scrollHeight, 120) + 'px';
 });
@@ -207,44 +369,90 @@ userInput.addEventListener('keydown', (e) => {
   }
 });
 
-// Limpiar chat (inicia nueva conversación)
-clearBtn.addEventListener('click', async () => {
-  // Eliminar conversación de la base de datos si existe
-  if (sessionId) {
+// Nuevo chat
+newChatBtn.addEventListener('click', createNewChat);
+
+// Toggle sidebar
+toggleSidebarBtn.addEventListener('click', () => {
+  if (window.innerWidth <= 768) {
+    sidebar.classList.toggle('open');
+  } else {
+    sidebar.classList.toggle('collapsed');
+  }
+});
+
+// Renombrar chat
+renameChatBtn.addEventListener('click', () => {
+  const chat = chats.find(c => c.id === currentChatId);
+  if (chat) {
+    renameInput.value = chat.title;
+    renameModal.classList.add('show');
+    renameInput.focus();
+  }
+});
+
+confirmRename.addEventListener('click', () => {
+  const chat = chats.find(c => c.id === currentChatId);
+  if (chat && renameInput.value.trim()) {
+    chat.title = renameInput.value.trim();
+    chat.autoNamed = true;
+    saveChats();
+    currentChatTitle.textContent = chat.title;
+    renderChatList();
+    renameModal.classList.remove('show');
+  }
+});
+
+cancelRename.addEventListener('click', () => {
+  renameModal.classList.remove('show');
+});
+
+// Cerrar modal con Escape
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && renameModal.classList.contains('show')) {
+    renameModal.classList.remove('show');
+  }
+});
+
+// Eliminar chat
+deleteChatBtn.addEventListener('click', async () => {
+  const chat = chats.find(c => c.id === currentChatId);
+  if (!chat) return;
+  
+  if (!confirm(`¿Estás seguro de eliminar "${chat.title}"?`)) return;
+  
+  // Eliminar de la base de datos si tiene sessionId
+  if (chat.sessionId) {
     try {
-      await fetch(`${API_BASE_URL}/api/conversations/${sessionId}`, { method: 'DELETE' });
+      await fetch(`${API_BASE_URL}/api/conversations/${chat.sessionId}`, { method: 'DELETE' });
     } catch (error) {
-      console.log('No se pudo eliminar la conversación:', error.message);
+      console.log('No se pudo eliminar la conversación del servidor:', error.message);
     }
   }
+  
+  // Eliminar del array
+  chats = chats.filter(c => c.id !== currentChatId);
+  
+  // Crear nuevo chat si no quedan
+  if (chats.length === 0) {
+    createNewChat();
+  } else {
+    currentChatId = chats[0].id;
+    loadChat(currentChatId);
+  }
+  
+  saveChats();
+  renderChatList();
+});
 
-  // Limpiar session_id local
-  sessionId = null;
-  localStorage.removeItem('chatbot_session_id');
-
-  // Limpiar mensajes y mostrar bienvenida
-  chatMessages.innerHTML = `
-    <div class="message bot">
-      <div class="message-avatar">
-        <i class="fas fa-robot"></i>
-      </div>
-      <div class="message-content">
-        <p>¡Hola! Soy NullBot, el asistente de IA del grupo de trabajo Null. Estoy powered by Azure OpenAI. ¿En qué puedo ayudarte hoy?</p>
-        <span class="message-time">Ahora</span>
-      </div>
-    </div>
-  `;
-
-  console.log('Chat limpiado - Nueva sesión');
+// Cerrar sidebar al hacer clic fuera en móvil
+document.addEventListener('click', (e) => {
+  if (window.innerWidth <= 768) {
+    if (!sidebar.contains(e.target) && !toggleSidebarBtn.contains(e.target)) {
+      sidebar.classList.remove('open');
+    }
+  }
 });
 
 // Inicialización
-document.addEventListener('DOMContentLoaded', () => {
-  console.log('ChatBot initialized');
-  if (sessionId) {
-    console.log('Sesión existente encontrada:', sessionId);
-    loadConversationHistory();
-  } else {
-    console.log('Nueva sesión - Sin historial previo');
-  }
-});
+document.addEventListener('DOMContentLoaded', init);
